@@ -93,3 +93,45 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ## Author
 
 Derek - CyBrainSpark
+
+---
+
+## Fork: MLobsien/obsidian-pdf-export
+
+This is a fork of [focus921/obsidian-pdf-export](https://github.com/focus921/obsidian-pdf-export) by Derek (CyBrainSpark).
+
+### What's different (v1.1.0)
+
+Base64-Bild-Inlining für den Safari-Flow: Alle Bilder aus dem Obsidian-Tresor werden beim Export direkt in die kopierte HTML-/Daten-URL eingebettet. Dadurch erscheinen sie in Safari und landen im fertigen PDF.
+
+### New settings
+
+- **Bilder einbetten (base64)**: Toggle (Default: an) — Bilder werden als base64 Data-URIs eingebettet
+- **Bildgröße beim Einbetten**: Dropdown — Original / Kompakt (max 1600px) / Klein (max 1024px)
+
+### GIF-Policy
+
+GIFs werden als Rasterbilder behandelt (PDF ist statisch — Animation ginge beim Print ohnehin verloren). Beim Verkleinern werden sie zu statischen JPEGs konvertiert.
+
+### Size expectations
+
+Notizen mit großen animierten GIFs (z.B. Sinus-GIF ~1.93MB) erzeugen mehrere MB große Daten-URLs. Safari auf iOS hat dabei keine bekannte harte Grenze, aber die Anzeige kann bei ~4096 Zeichen abschneiden (iOS 18.1.1). Kompakte Einstellung (Default) verkleinert Bilder >300KB oder >1600px automatisch.
+
+### Known limits
+
+- Excalidraw-/NoteDraw-Embeds werden nicht speziell behandelt (können weiterhin fehlen)
+- Remote-Bilder (http/https) werden nicht heruntergeladen — Safari lädt sie selbst
+
+### Reload prerequisites
+
+- **Desktop**: Plugin neu laden (Settings → Community Plugins → pdf-export-mobile → Reload)
+- **iOS**: Sync abwarten + App neu starten oder Plugin togglen
+
+### Safari Smoke Test
+
+1. Note in Obsidian öffnen
+2. Command Palette → "Export current note to PDF"
+3. "Copy HTML" klicken
+4. Safari öffnen → Daten-URL in Adressleiste einfügen
+5. Bilder sollten sichtbar sein
+6. Share → Print → Save as PDF
