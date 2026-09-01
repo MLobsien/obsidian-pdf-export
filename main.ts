@@ -346,7 +346,7 @@ export default class PDFExportPlugin extends Plugin {
 				this.app,
 				markdown,
 				container,
-				sourcePath,
+				'',
 				component
 			);
 		} finally {
