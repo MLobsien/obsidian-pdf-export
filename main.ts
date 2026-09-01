@@ -4,12 +4,16 @@ interface PDFExportSettings {
 	fontSize: number;
 	lineHeight: number;
 	includeTitle: boolean;
+	embedImages: boolean;
+	imageSize: 'original' | 'kompakt' | 'klein';
 }
 
 const DEFAULT_SETTINGS: PDFExportSettings = {
 	fontSize: 14,
 	lineHeight: 1.6,
-	includeTitle: true
+	includeTitle: true,
+	embedImages: true,
+	imageSize: 'kompakt',
 }
 
 class PDFPreviewModal extends Modal {
@@ -43,6 +47,8 @@ class PDFPreviewModal extends Modal {
 			instructions.appendText('2. Open Safari and paste URL');
 			instructions.createEl('br');
 			instructions.appendText('3. Use Share → Print → Save PDF');
+			instructions.createEl('br');
+			instructions.appendText('Bilder sind eingebettet');
 		} else {
 			const strong2 = instructions.createEl('strong');
 			strong2.setText('Desktop:');
@@ -92,7 +98,7 @@ class PDFPreviewModal extends Modal {
 			.catch(() => {
 				navigator.clipboard.writeText(htmlContent)
 					.then(() => {
-						new Notice('HTML copied to clipboard');
+					new Notice('HTML-Code statt Daten-URL kopiert — der Safari-Flow braucht die Daten-URL');
 					})
 					.catch((err) => {
 						console.error('Failed to copy:', err);
@@ -318,7 +324,7 @@ export default class PDFExportPlugin extends Plugin {
 			new Notice('Preparing PDF preview...');
 
 			const content = await this.app.vault.read(file);
-			const renderedContent = await this.renderMarkdownToHTML(content);
+		const renderedContent = await this.renderMarkdownToHTML(content, file.path);
 
 			const modal = new PDFPreviewModal(this.app, renderedContent, file.basename, this.settings);
 			modal.open();
@@ -330,7 +336,7 @@ export default class PDFExportPlugin extends Plugin {
 		}
 	}
 
-	private async renderMarkdownToHTML(markdown: string): Promise<string> {
+	private async renderMarkdownToHTML(markdown: string, sourcePath: string = ''): Promise<string> {
 		const container = document.createElement('div');
 		const component = new Component();
 		component.load();
@@ -340,14 +346,94 @@ export default class PDFExportPlugin extends Plugin {
 				this.app,
 				markdown,
 				container,
-				'',
+				sourcePath,
 				component
 			);
 		} finally {
 			component.unload();
 		}
 
+		// Inline images as base64 data URIs if enabled
+		if (this.settings.embedImages) {
+			const stats = await this.inlineImages(container, sourcePath);
+			if (stats.failed > 0) {
+				new Notice(`PDF-Export: ${stats.failed} Bild(er) konnten nicht eingebettet werden`);
+			}
+			if (stats.inlined > 0) {
+				new Notice(`${stats.inlined} Bild(er) eingebettet (${stats.skipped} übersprungen)`);
+			}
+		}
+
 		return container.innerHTML;
+	}
+
+	private async inlineImages(
+		container: HTMLElement,
+		sourcePath: string
+	): Promise<{ inlined: number; skipped: number; failed: number }> {
+		const { classifySrc, resolveVaultFile, mimeForExt, isRasterMime, bytesToBase64DataUri, needsDownscale } = await import('./src/image-inliner');
+
+		const imgs = container.querySelectorAll('img[src]');
+		const seen = new Set<string>();
+		let inlined = 0;
+		let skipped = 0;
+		let failed = 0;
+
+		const basePath = (this.app.vault.adapter as any)?.basePath as string | undefined;
+
+		for (const img of Array.from(imgs)) {
+			const src = img.getAttribute('src') || '';
+			if (!src || seen.has(src)) continue;
+			seen.add(src);
+
+			const classified = classifySrc(src);
+
+			// Skip passthrough classes
+			if (classified.kind === 'data' || classified.kind === 'remote' || classified.kind === 'protocol-relative') {
+				skipped++;
+				continue;
+			}
+
+			// Blob is unresolvable
+			if (classified.kind === 'blob') {
+				failed++;
+				continue;
+			}
+
+			// Resolve vault file
+			const ctx = {
+				basePath,
+				getAbstractFileByPath: (p: string) => this.app.vault.getAbstractFileByPath(p),
+				getFirstLinkpathDest: (link: string, src: string) => this.app.metadataCache.getFirstLinkpathDest(link, src),
+				sourcePath,
+			};
+			const file = resolveVaultFile(classified.path, ctx);
+
+			if (!file) {
+				failed++;
+				continue;
+			}
+
+			try {
+				const bytes = new Uint8Array(await this.app.vault.readBinary(file as TFile));
+				const ext = (file as TFile).extension ? `.${(file as TFile).extension}` : '';
+				const mime = mimeForExt(ext);
+
+				if (!mime) {
+					failed++;
+					continue;
+				}
+
+				// For now, use original bytes (raster ops in T6)
+				const dataUri = bytesToBase64DataUri(bytes, mime);
+				img.setAttribute('src', dataUri);
+				inlined++;
+			} catch {
+				failed++;
+			}
+		}
+
+		return { inlined, skipped, failed };
 	}
 }
 
@@ -402,6 +488,29 @@ class PDFExportSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.includeTitle)
 				.onChange(async (value) => {
 					this.plugin.settings.includeTitle = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Bilder einbetten (base64)')
+			.setDesc('Bilder werden als base64 Data-URIs in die HTML eingebettet')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.embedImages)
+				.onChange(async (value) => {
+					this.plugin.settings.embedImages = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Bildgröße beim Einbetten')
+			.setDesc('Originalgröße oder kompakt/klein verkleinern')
+			.addDropdown(dropdown => dropdown
+				.addOption('original', 'Original')
+				.addOption('kompakt', 'Kompakt (max 1600px)')
+				.addOption('klein', 'Klein (max 1024px)')
+				.setValue(this.plugin.settings.imageSize)
+				.onChange(async (value: 'original' | 'kompakt' | 'klein') => {
+					this.plugin.settings.imageSize = value;
 					await this.plugin.saveSettings();
 				}));
 	}
