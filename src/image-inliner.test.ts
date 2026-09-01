@@ -4,8 +4,12 @@ import {
   resolveVaultFile,
   mimeForExt,
   isRasterMime,
+  bytesToBase64DataUri,
+  needsDownscale,
+  shouldUseRasterResult,
   type VaultCtx,
   type ClassifiedSrc,
+  type DownscaleSetting,
 } from './image-inliner';
 
 describe('classifySrc', () => {
@@ -183,5 +187,110 @@ describe('isRasterMime', () => {
 
   test('image/avif → true', () => {
     expect(isRasterMime('image/avif')).toBe(true);
+  });
+});
+
+describe('bytesToBase64DataUri', () => {
+  test('small buffer → correct data URI', () => {
+    const bytes = new Uint8Array([72, 101, 108, 108, 111]); // 'Hello'
+    const result = bytesToBase64DataUri(bytes, 'image/png');
+    expect(result).toBe('data:image/png;base64,SGVsbG8=');
+  });
+
+  test('empty buffer → data URI with empty base64', () => {
+    const bytes = new Uint8Array([]);
+    const result = bytesToBase64DataUri(bytes, 'image/jpeg');
+    expect(result).toBe('data:image/jpeg;base64,');
+  });
+
+  test('>32KB buffer uses chunked path (no stack overflow)', () => {
+    // 40KB buffer to exercise the chunked path (0x8000 = 32768)
+    const bytes = new Uint8Array(40_000).fill(0xAB);
+    const result = bytesToBase64DataUri(bytes, 'image/png');
+    expect(result).toMatch(/^data:image\/png;base64,/);
+    // Verify base64 decodes correctly
+    const b64 = result.split(',')[1];
+    const decoded = atob(b64);
+    expect(decoded.length).toBe(40_000);
+  });
+
+  test('matches Buffer.from().toString("base64") reference', () => {
+    const bytes = new Uint8Array([0, 1, 2, 255, 128, 64]);
+    const result = bytesToBase64DataUri(bytes, 'image/gif');
+    const expected = Buffer.from(bytes).toString('base64');
+    expect(result).toBe(`data:image/gif;base64,${expected}`);
+  });
+});
+
+describe('needsDownscale', () => {
+  test('original → always false', () => {
+    expect(needsDownscale(1_000_000, 3000, 3000, 'original')).toBe(false);
+  });
+
+  test('kompakt: ≤300KB AND ≤1600px → false', () => {
+    expect(needsDownscale(200_000, 800, 600, 'kompakt')).toBe(false);
+  });
+
+  test('kompakt: >300KB → true', () => {
+    expect(needsDownscale(400_000, 800, 600, 'kompakt')).toBe(true);
+  });
+
+  test('kompakt: >1600px → true', () => {
+    expect(needsDownscale(200_000, 2000, 1000, 'kompakt')).toBe(true);
+  });
+
+  test('klein: ≤300KB AND ≤1024px → false', () => {
+    expect(needsDownscale(200_000, 800, 600, 'klein')).toBe(false);
+  });
+
+  test('klein: >300KB → true', () => {
+    expect(needsDownscale(400_000, 800, 600, 'klein')).toBe(true);
+  });
+
+  test('klein: >1024px → true', () => {
+    expect(needsDownscale(200_000, 1200, 800, 'klein')).toBe(true);
+  });
+
+  test('SVG → always false (vector, never raster)', () => {
+    expect(needsDownscale(5_000_000, 4000, 4000, 'kompakt', 'image/svg+xml')).toBe(false);
+  });
+
+  test('GIF treated as raster (not SVG)', () => {
+    expect(needsDownscale(2_000_000, 2000, 1000, 'kompakt', 'image/gif')).toBe(true);
+  });
+
+  test('1.93MB GIF → true (kompakt)', () => {
+    // Sinus GIF: 1.93MB, 850x400
+    expect(needsDownscale(1_930_000, 850, 400, 'kompakt')).toBe(true);
+  });
+
+  test('644KB progressive JPEG → true (kompakt)', () => {
+    // just for fun_wordsearch.jpeg: 644KB, 1600x1200
+    expect(needsDownscale(644_000, 1600, 1200, 'kompakt')).toBe(true);
+  });
+
+  test('11KB GIF → false (kompakt, small)', () => {
+    // Kreisbegriffe.gif: 11KB
+    expect(needsDownscale(11_000, 400, 300, 'kompakt')).toBe(false);
+  });
+});
+
+describe('shouldUseRasterResult', () => {
+  test('raster smaller → true (use raster)', () => {
+    const raster = new Uint8Array([1, 2, 3]);
+    const original = new Uint8Array([1, 2, 3, 4, 5]);
+    expect(shouldUseRasterResult(raster, original)).toBe(true);
+  });
+
+  test('raster same size → false (keep original)', () => {
+    const raster = new Uint8Array([1, 2, 3]);
+    const original = new Uint8Array([1, 2, 3]);
+    expect(shouldUseRasterResult(raster, original)).toBe(false);
+  });
+
+  test('raster larger → false (keep original)', () => {
+    const raster = new Uint8Array([1, 2, 3, 4, 5]);
+    const original = new Uint8Array([1, 2, 3]);
+    expect(shouldUseRasterResult(raster, original)).toBe(false);
   });
 });

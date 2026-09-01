@@ -119,3 +119,63 @@ export function mimeForExt(ext: string): string | null {
 export function isRasterMime(mime: string): boolean {
   return mime !== 'image/svg+xml';
 }
+/**
+ * Convert bytes to a data URI with chunked base64 encoding.
+ * Uses 0x8000 (32768) byte chunks to avoid call-stack overflow.
+ */
+export function bytesToBase64DataUri(bytes: Uint8Array, mime: string): string {
+  const chunks: string[] = [];
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    chunks.push(String.fromCharCode(...bytes.subarray(i, i + chunkSize)));
+  }
+  return `data:${mime};base64,${btoa(chunks.join(''))}`;
+}
+
+export type DownscaleSetting = 'original' | 'kompakt' | 'klein';
+
+/**
+ * Decide whether an image needs downscaling based on size and setting.
+ * SVG is NEVER downscaled (vector format, kept as-is).
+ * GIF is treated as raster (PDF is static, animation lost in print).
+ */
+export function needsDownscale(
+  byteLength: number,
+  width: number,
+  height: number,
+  setting: DownscaleSetting,
+  mime?: string,
+): boolean {
+  // SVG never needs downscaling
+  if (mime === 'image/svg+xml') return false;
+
+  const maxEdge = Math.max(width, height);
+
+  switch (setting) {
+    case 'original':
+      return false;
+    case 'kompakt':
+      return byteLength > 300_000 || maxEdge > 1600;
+    case 'klein':
+      return byteLength > 300_000 || maxEdge > 1024;
+    default:
+      return false;
+  }
+}
+
+/**
+ * Keep-Smaller-Guard: use raster result only if it's actually smaller.
+ * Prevents useless re-encoding when original is already compact.
+ */
+export function shouldUseRasterResult(
+  rasterBytes: Uint8Array,
+  originalBytes: Uint8Array,
+): boolean {
+  return rasterBytes.byteLength < originalBytes.byteLength;
+}
+
+export interface Stats {
+  inlined: number;
+  skipped: number;
+  failed: number;
+}
