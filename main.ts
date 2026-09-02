@@ -235,6 +235,19 @@ class PDFPreviewModal extends Modal {
 			pre, blockquote, table, img { page-break-inside: avoid; }
 		}
 	</style>
+	<script>
+		MathJax = {
+			tex: {
+				inlineMath: [['$', '$'], ['\\(', '\\)']],
+				displayMath: [['$$', '$$'], ['\\[', '\\]']],
+				processEscapes: true
+			},
+			options: {
+				skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+			}
+		};
+	</script>
+	<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 </head>
 <body>
 	${includeTitle ? `<h1 class="document-title">${this.escapeHTML(this.title)}</h1>` : ''}
