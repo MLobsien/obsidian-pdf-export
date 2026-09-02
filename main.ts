@@ -125,102 +125,139 @@ class PDFPreviewModal extends Modal {
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>${this.escapeHTML(this.title)}</title>
 	<style>
-		* { box-sizing: border-box; }
+		*, *::before, *::after { box-sizing: border-box; }
 
+		/* Base: white background, black text, override all Obsidian dark theme */
 		body {
 			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
 			font-size: ${fontSize}px;
 			line-height: ${lineHeight};
-			color: #000;
-			background: #fff;
+			color: #000 !important;
+			background: #fff !important;
 			margin: 0;
 			padding: 20px;
 		}
 
+		/* Override Obsidian theme colors globally */
+		.theme-dark, .app-container, .workspace, .view-content {
+			color: #000 !important;
+			background: transparent !important;
+		}
+
+		/* Headings */
 		h1, h2, h3, h4, h5, h6 {
+			color: #000 !important;
 			margin-top: 1.5em;
 			margin-bottom: 0.5em;
 			font-weight: 600;
 			line-height: 1.3;
 		}
-
 		h1 { font-size: 2em; border-bottom: 2px solid #333; padding-bottom: 0.3em; }
 		h2 { font-size: 1.5em; border-bottom: 1px solid #666; padding-bottom: 0.3em; }
 		h3 { font-size: 1.25em; }
 		h4 { font-size: 1.1em; }
 		h5 { font-size: 1em; }
-		h6 { font-size: 0.9em; color: #666; }
+		h6 { font-size: 0.9em; color: #666 !important; }
 
+		/* Paragraphs */
 		p { margin: 1em 0; }
 
-		a { color: #0366d6; text-decoration: none; }
+		/* Links */
+		a { color: #0366d6 !important; text-decoration: none; }
 
+		/* Inline code */
 		code {
 			font-family: "SF Mono", Monaco, Menlo, Consolas, monospace;
 			font-size: 0.9em;
-			background-color: #f6f8fa;
+			background-color: #f6f8fa !important;
 			padding: 0.2em 0.4em;
 			border-radius: 3px;
+			color: #000 !important;
 		}
 
-		pre {
-			background-color: #f6f8fa;
-			border: 1px solid #d1d5da;
+		/* Code blocks */
+		pre, .cm-s-obsidian pre {
+			background-color: #f6f8fa !important;
+			border: 1px solid #d1d5da !important;
 			border-radius: 6px;
 			padding: 16px;
 			overflow-x: auto;
 			font-size: 0.85em;
 			line-height: 1.45;
+			color: #000 !important;
 		}
-
-		pre code {
-			background: none;
+		pre code, .cm-s-obsidian pre code {
+			background: none !important;
 			padding: 0;
 			font-size: inherit;
 		}
 
+		/* Blockquotes */
 		blockquote {
 			margin: 1em 0;
 			padding: 0.5em 1em;
-			border-left: 4px solid #dfe2e5;
-			color: #6a737d;
-			background-color: #f8f9fa;
+			border-left: 4px solid #dfe2e5 !important;
+			color: #6a737d !important;
+			background-color: #f8f9fa !important;
 		}
 
-		ul, ol {
-			margin: 1em 0;
-			padding-left: 2em;
-		}
-
+		/* Lists */
+		ul, ol { margin: 1em 0; padding-left: 2em; }
 		li { margin: 0.25em 0; }
 
-		table {
+		/* Tables — both markdown tables and Obsidian table widget */
+		table, .table-editor, .table-wrapper table {
 			border-collapse: collapse;
 			width: 100%;
 			margin: 1em 0;
 		}
-
-		th, td {
-			border: 1px solid #dfe2e5;
+		th, td, .table-editor th, .table-editor td {
+			border: 1px solid #dfe2e5 !important;
 			padding: 8px 12px;
 			text-align: left;
+			color: #000 !important;
+			background: transparent !important;
 		}
-
-		th {
-			background-color: #f6f8fa;
+		th, .table-editor th {
+			background-color: #f6f8fa !important;
 			font-weight: 600;
 		}
 
-		tr:nth-child(even) { background-color: #f8f9fa; }
-
-		hr {
-			border: none;
-			border-top: 2px solid #dfe2e5;
+		/* Horizontal rules */
+		hr, .cm-s-obsidian hr {
+			border: none !important;
+			border-top: 2px solid #dfe2e5 !important;
 			margin: 2em 0;
 		}
 
+		/* Images */
 		img { max-width: 100%; height: auto; }
 
+		/* MathJax — already rendered by Obsidian, just ensure visibility */
+		mjx-container {
+			display: inline-block !important;
+			color: #000 !important;
+		}
+
+		/* Desmos graph plugin */
+		.block-language-desmos-graph {
+			margin: 1em 0;
+			text-align: center;
+		}
+
+		/* Callouts */
+		.callout {
+			background-color: #f8f9fa !important;
+			border-color: #dfe2e5 !important;
+			color: #000 !important;
+		}
+		.callout-title { color: #000 !important; }
+
+		/* Strikethrough, highlight, etc. */
+		del, s { color: #666 !important; }
+		mark { background-color: #fff3b0 !important; color: #000 !important; }
+
+		/* Document title */
 		.document-title {
 			font-size: 2.2em;
 			font-weight: 700;
@@ -229,25 +266,21 @@ class PDFPreviewModal extends Modal {
 			border-bottom: 3px solid #333;
 		}
 
+		/* Obsidian-specific: clean up markdown source view remnants */
+		.cm-s-obsidian .cm-line {
+			white-space: pre-wrap;
+			word-break: break-word;
+		}
+		.HyperMD-header { font-weight: 600; }
+		.cm-embed-block { margin: 0.5em 0; }
+
+		/* Print optimizations */
 		@media print {
 			body { padding: 0; }
 			h1, h2, h3, h4, h5, h6 { page-break-after: avoid; }
-			pre, blockquote, table, img { page-break-inside: avoid; }
+			pre, blockquote, table, img, .block-language-desmos-graph { page-break-inside: avoid; }
 		}
 	</style>
-	<script>
-		MathJax = {
-			tex: {
-				inlineMath: [['$', '$'], ['\\(', '\\)']],
-				displayMath: [['$$', '$$'], ['\\[', '\\]']],
-				processEscapes: true
-			},
-			options: {
-				skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
-			}
-		};
-	</script>
-	<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 </head>
 <body>
 	${includeTitle ? `<h1 class="document-title">${this.escapeHTML(this.title)}</h1>` : ''}
@@ -336,16 +369,91 @@ export default class PDFExportPlugin extends Plugin {
 		try {
 			new Notice('Preparing PDF preview...');
 
-			const content = await this.app.vault.read(file);
-		const renderedContent = await this.renderMarkdownToHTML(content, file.path);
+			// Try to capture the already-rendered DOM from the active view
+			const renderedContent = this.captureRenderedContent();
 
-			const modal = new PDFPreviewModal(this.app, renderedContent, file.basename, this.settings);
-			modal.open();
+			if (renderedContent) {
+				// Successfully captured rendered DOM — inline images if needed
+				const container = document.createElement('div');
+				container.innerHTML = renderedContent;
+
+				if (this.settings.embedImages) {
+					const stats = await this.inlineImages(container, file.path);
+					if (stats.failed > 0) {
+						new Notice(`PDF-Export: ${stats.failed} Bild(er) konnten nicht eingebettet werden`);
+					}
+					if (stats.inlined > 0) {
+						new Notice(`${stats.inlined} Bild(er) eingebettet (${stats.skipped} übersprungen)`);
+					}
+				}
+
+				const modal = new PDFPreviewModal(this.app, container.innerHTML, file.basename, this.settings);
+				modal.open();
+			} else {
+				// Fallback: re-render markdown (no live DOM available)
+				const content = await this.app.vault.read(file);
+				const renderedHTML = await this.renderMarkdownToHTML(content, file.path);
+				const modal = new PDFPreviewModal(this.app, renderedHTML, file.basename, this.settings);
+				modal.open();
+			}
 
 		} catch (error) {
 			console.error('PDF export error:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			new Notice('PDF export failed: ' + errorMessage, 10000);
+		}
+	}
+
+	/**
+	 * Capture the already-rendered DOM from Obsidian's live preview or reading view.
+	 * Returns the cleaned innerHTML, or null if no rendered content is available.
+	 */
+	captureRenderedContent(): string | null {
+		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+		if (!activeView) return null;
+
+		// Try live preview: .cm-content contains all rendered content
+		const cmContent = activeView.containerEl.querySelector('.cm-content');
+		if (cmContent && cmContent.innerHTML.length > 0) {
+			const clone = cmContent.cloneNode(true) as HTMLElement;
+			this.cleanEditorUI(clone);
+			return clone.innerHTML;
+		}
+
+		// Try reading view: .markdown-preview-section
+		const previewSection = activeView.containerEl.querySelector('.markdown-preview-section');
+		if (previewSection && previewSection.innerHTML.length > 0) {
+			const clone = previewSection.cloneNode(true) as HTMLElement;
+			return clone.innerHTML;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Remove editor-specific UI elements from a cloned DOM.
+	 */
+	cleanEditorUI(el: HTMLElement): void {
+		// Remove cursor layers, selection layers, drag handles, fold indicators, widget buffers
+		const selectors = [
+			'.cm-cursorLayer',
+			'.cm-selectionLayer',
+			'.cm-cursor',
+			'.cm-fat-cursor',
+			'.cm-layer',
+			'.cm-announced',
+			'.cm-widgetBuffer',
+			'.cm-fold-indicator',
+			'.table-col-drag-handle',
+			'.table-row-drag-handle',
+			'.table-row-btn',
+			'.table-col-btn',
+			'.inline-title',
+			'.metadata-container',
+			'.embedded-backlinks',
+		];
+		for (const sel of selectors) {
+			el.querySelectorAll(sel).forEach(e => e.remove());
 		}
 	}
 
