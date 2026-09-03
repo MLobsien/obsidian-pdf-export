@@ -266,13 +266,77 @@ class PDFPreviewModal extends Modal {
 			border-bottom: 3px solid #333;
 		}
 
-		/* Obsidian-specific: clean up markdown source view remnants */
+		/* Obsidian-specific: reading view + CM live preview */
+		/* Reading view elements */
+		.markdown-preview-section {
+			color: #000 !important;
+		}
+		.markdown-preview-section h1, .markdown-preview-section h2, .markdown-preview-section h3,
+		.markdown-preview-section h4, .markdown-preview-section h5, .markdown-preview-section h6 {
+			color: #000 !important;
+		}
+		.markdown-preview-section a { color: #0366d6 !important; }
+		.markdown-preview-section pre,
+		.markdown-preview-section code {
+			background-color: #f6f8fa !important;
+			color: #000 !important;
+		}
+		.markdown-preview-section blockquote {
+			color: #6a737d !important;
+			background-color: #f8f9fa !important;
+			border-left-color: #dfe2e5 !important;
+		}
+		.markdown-preview-section table,
+		.markdown-preview-section th,
+		.markdown-preview-section td {
+			color: #000 !important;
+			border-color: #dfe2e5 !important;
+			background: transparent !important;
+		}
+		.markdown-preview-section th { background-color: #f6f8fa !important; }
+
+		/* CM live preview elements */
 		.cm-s-obsidian .cm-line {
 			white-space: pre-wrap;
 			word-break: break-word;
 		}
-		.HyperMD-header { font-weight: 600; }
+		.HyperMD-header { font-weight: 600; color: #000 !important; }
+		.HyperMD-header-1 { font-size: 1.8em; }
+		.HyperMD-header-2 { font-size: 1.5em; }
+		.HyperMD-header-3 { font-size: 1.25em; }
 		.cm-embed-block { margin: 0.5em 0; }
+		.cm-table-widget {
+			margin: 0.5em 0;
+			width: 100%;
+		}
+		.table-wrapper table,
+		.table-editor {
+			border-collapse: collapse;
+			width: 100%;
+		}
+		.table-wrapper th, .table-wrapper td,
+		.table-editor th, .table-editor td {
+			border: 1px solid #dfe2e5 !important;
+			padding: 8px 12px;
+			text-align: left;
+			color: #000 !important;
+			background: transparent !important;
+		}
+		.table-wrapper th, .table-editor th {
+			background-color: #f6f8fa !important;
+			font-weight: 600;
+		}
+		.internal-embed {
+			display: block;
+			margin: 0.5em 0;
+		}
+		.pdf-embed {
+			/* Obsidian PDF embed — hide toolbar chrome */
+		}
+		.embed-actions,
+		.pdf-toolbar {
+			display: none !important;
+		}
 
 		/* Print optimizations */
 		@media print {
@@ -412,18 +476,27 @@ export default class PDFExportPlugin extends Plugin {
 		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (!activeView) return null;
 
-		// Try live preview: .cm-content contains all rendered content
-		const cmContent = activeView.containerEl.querySelector('.cm-content');
-		if (cmContent && cmContent.innerHTML.length > 0) {
-			const clone = cmContent.cloneNode(true) as HTMLElement;
+		// Try reading view first: .markdown-preview-section has clean rendered HTML
+		const previewSection = activeView.containerEl.querySelector('.markdown-preview-section');
+		if (previewSection && previewSection.innerHTML.length > 1000) {
+			const clone = previewSection.cloneNode(true) as HTMLElement;
+			this.cleanPreviewUI(clone);
+			return clone.innerHTML;
+		}
+
+		// Try live preview: .cm-sizer contains rendered content inside CM editor
+		const cmSizer = activeView.containerEl.querySelector('.cm-sizer');
+		if (cmSizer && cmSizer.innerHTML.length > 1000) {
+			const clone = cmSizer.cloneNode(true) as HTMLElement;
 			this.cleanEditorUI(clone);
 			return clone.innerHTML;
 		}
 
-		// Try reading view: .markdown-preview-section
-		const previewSection = activeView.containerEl.querySelector('.markdown-preview-section');
-		if (previewSection && previewSection.innerHTML.length > 0) {
-			const clone = previewSection.cloneNode(true) as HTMLElement;
+		// Fallback: try .cm-content (less clean but has content)
+		const cmContent = activeView.containerEl.querySelector('.cm-content');
+		if (cmContent && cmContent.innerHTML.length > 1000) {
+			const clone = cmContent.cloneNode(true) as HTMLElement;
+			this.cleanEditorUI(clone);
 			return clone.innerHTML;
 		}
 
@@ -451,6 +524,23 @@ export default class PDFExportPlugin extends Plugin {
 			'.inline-title',
 			'.metadata-container',
 			'.embedded-backlinks',
+		];
+		for (const sel of selectors) {
+			el.querySelectorAll(sel).forEach(e => e.remove());
+	}
+	}
+
+
+	/**
+	 * Clean the reading/preview view DOM for export.
+	 */
+	cleanPreviewUI(el: HTMLElement): void {
+		const selectors = [
+			'.inline-title',
+			'.metadata-container',
+			'.embedded-backlinks',
+			'.markdown-preview-pusher',
+			'.markdown-preview-section > h1:first-child',
 		];
 		for (const sel of selectors) {
 			el.querySelectorAll(sel).forEach(e => e.remove());
