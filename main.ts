@@ -345,6 +345,7 @@ class PDFPreviewModal extends Modal {
 			pre, blockquote, table, img, .block-language-desmos-graph { page-break-inside: avoid; }
 		}
 	</style>
+	<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 </head>
 <body>
 	${includeTitle ? `<h1 class="document-title">${this.escapeHTML(this.title)}</h1>` : ''}
